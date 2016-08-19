@@ -1,5 +1,6 @@
 "use strict";
 
+// var socket = require('io');
 var Morse = Morse || {};
 
 /* Constants */
@@ -7,6 +8,7 @@ var Morse = Morse || {};
 Morse.DIT = 60;
 Morse.DAH = 180;
 
+/* Encoding table {{{
 Morse.encTab = {
 	'A': '.-',
 	'B': '-...',
@@ -55,11 +57,12 @@ Morse.encTab = {
 	'(': '-.--.-',
 	')': '-.--.-',
 	'_': '..--.-',
-	' ': ' ',
+	' ': '/',
 
 	// prosigns
 	'SOS': '...---...',
 };
+}}} */
 
 // Flip dictionary
 Morse.decTab = {};
@@ -79,7 +82,7 @@ Morse.encode = function(str) {
 Morse.decode = function(arr) {
 	var m = [];
 	Array.prototype.map.call(arr, function(x) { m.push(Morse.decTab[x]); });
-	return m.join(' ');
+	return m.join('');
 };
 
 // Returns array of [onDuration, offDuration]
@@ -137,8 +140,12 @@ Morse.signalInit = function() {
 Morse.signalOn = function() { Morse.signal = true; }
 Morse.signalOff = function() { Morse.signal = false; }
 
-window.onkeydown = Morse.signalOn;
-window.onkeyup = Morse.signalOff;
+// Send to server
+Morse.sendSignalOn = function() { socket.emit('signal on'); }
+Morse.sendSignalOff = function() { socket.emit('signal off'); }
+
+window.onkeydown = Morse.sendSignalOn;
+window.onkeyup = Morse.sendSignalOff;
 
 Morse.signalPlay = function(durs) {
 	Morse.bits.pushArrays(Morse.getBitstream(durs))
@@ -147,10 +154,10 @@ Morse.signalPlay = function(durs) {
 Morse.update = function() {
 	requestAnimationFrame(Morse.update);
 
-	var userInput = false; // tmp
+	var userInput = true; // tmp
 	if (!userInput) {
 		Morse.signal = Morse.bits.next();
-		console.log(Morse.signal);
+		console.log(Morse.signal); // debug
 	}
 
 	Morse.vol.gain.value = !!Morse.signal; // set signal

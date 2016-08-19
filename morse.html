@@ -8,7 +8,6 @@
 
 <body>
 	<!-- TODO should this be a textarea? -->
-
 	<label>Enter some text: <input id="a" type="text"/></label>
 
 	<br/>
@@ -20,27 +19,42 @@
 	<br/>
 	<input id="b"></input>
 
+	<script src="/socket.io/socket.io.js"></script>
 	<script src="morse.js"></script>
 	<script src="queue.js"></script>
 
 	<script>
-(function() {
-var a = document.querySelector("#a");
-var b = document.querySelector("#b");
-var encode = document.querySelector("#encode");
-var decode = document.querySelector("#decode");
-var play = document.querySelector("#play")
+// Client-side code
+// (function() {
+var a = document.querySelector('#a');
+var b = document.querySelector('#b');
+var encode = document.querySelector('#encode');
+var decode = document.querySelector('#decode');
+var play = document.querySelector('#play')
 
 encode.onclick = function() { b.value = Morse.encode(a.value).join(' '); }
 decode.onclick = function() { b.value = Morse.decode(a.value.split(' ')); }
 vibrate.onclick = function() { Morse.vibrate(a.value.split('')); }
 play.onclick = function() { Morse.signalPlay(a.value.split('')); }
 
-a.value = '.... . .-.. .-.. ---   .-- --- .-. .-.. -..'; // tmp
+a.value = '.... . .-.. .-.. --- / .-- --- .-. .-.. -..'; // HELLO WORLD
 
 Morse.signalInit();
-})();
-	</script>
+// })();
 
+// Socket.io
+var socket = io();
+
+// Receive from server
+// TODO figure out half duplex stuff
+socket.on('signal on', function(msg) {
+	Morse.signalOn();
+	console.log('signal on');
+});
+socket.on('signal off', function(msg) {
+	Morse.signalOff();
+	console.log('signal off');
+});
+	</script>
 </body>
 </html>

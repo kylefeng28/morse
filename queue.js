@@ -1,9 +1,10 @@
 "use strict";
 
 /* Infinite FIFO queue
+ * Similar to `Stream', but the values are not predetermined.
  * Can be used as an infinite bit stream
- * next() triggers a tick, and will initially only returns zero.
- * push(val, [n]) pushes `val` to the queue, and will return after `n` ticks after the previous tick
+ * `next()' triggers a tick, and will initially only returns zero.
+ * `push(val, [n])' pushes `val' to the queue, and will return after `n' ticks after the previous tick
  */
 var Queue = function(defaultVal) {
 	this.defaultVal = defaultVal || 0;
