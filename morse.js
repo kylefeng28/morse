@@ -8,7 +8,7 @@ var Morse = Morse || {};
 Morse.DIT = 60;
 Morse.DAH = 180;
 
-/* Encoding table {{{
+/* Encoding table {{{ */
 Morse.encTab = {
 	'A': '.-',
 	'B': '-...',
@@ -62,7 +62,7 @@ Morse.encTab = {
 	// prosigns
 	'SOS': '...---...',
 };
-}}} */
+/* }}} */
 
 // Flip dictionary
 Morse.decTab = {};
@@ -96,7 +96,7 @@ Morse.getDurations = function(arr) {
 	return durs;
 };
 
-// Returns bitstream
+// Returns bitstream, terminating with -1
 // TODO don't depend on getDurations
 Morse.getBitstream = function(arr) {
 	var durs = Morse.getDurations(arr);
@@ -107,7 +107,7 @@ Morse.getBitstream = function(arr) {
 			bits.push(on);
 		}
 	});
-	return bits;
+	return bits.concat(-1); // Terminate with -1 
 };
 
 Morse.vibrate = function(arr) {
@@ -134,34 +134,38 @@ Morse.signalInit = function() {
 
 	// Init queue
 	Morse.bits = new Queue();
+	Morse.playFromSeq = false;
 };
 
 // tmp
-Morse.signalOn = function() { Morse.signal = true; }
-Morse.signalOff = function() { Morse.signal = false; }
+Morse.signalOn = function() { Morse.signal = true; Morse.updateSignal(); }
+Morse.signalOff = function() { Morse.signal = false; Morse.updateSignal(); }
 
 // Send to server
 Morse.sendSignalOn = function() { socket.emit('signal on'); }
 Morse.sendSignalOff = function() { socket.emit('signal off'); }
+Morse.sendSignal = function(bool) { bool ? Morse.sendSignalOn() : Morse.sendSignalOff(); }
 
+Morse.updateSignal = function() { Morse.vol.gain.value = !!Morse.signal; }
+
+// Key events
 window.onkeydown = Morse.sendSignalOn;
 window.onkeyup = Morse.sendSignalOff;
 
+// Automated keyer
 Morse.signalPlay = function(durs) {
-	Morse.bits.pushArrays(Morse.getBitstream(durs))
+	Morse.bits.pushArrays(Morse.getBitstream(durs));
+	Morse.playFromSeq = true;
 };
 
 Morse.update = function() {
-	requestAnimationFrame(Morse.update);
-
-	var userInput = true; // tmp
-	if (!userInput) {
-		Morse.signal = Morse.bits.next();
-		console.log(Morse.signal); // debug
+	if (Morse.playFromSeq) {
+		var signal = Morse.bits.next();
+		if (signal == -1) Morse.playFromSeq = false;
+		else Morse.sendSignal(signal);
 	}
-
-	Morse.vol.gain.value = !!Morse.signal; // set signal
 };
 
 
-Morse.animFrame = requestAnimationFrame(Morse.update);
+// Use setInterval instead of requestAnimationFrame so it can work in the background
+Morse.animFrame = setInterval(Morse.update, 1000 / 60);
