@@ -4,9 +4,13 @@
 var Morse = Morse || {};
 
 /* Constants */
-// 1 DAH = 3 DIT
+// 1 DAH = 3 DIT, 1 WS = 7 DIT
 Morse.DIT = 60;
 Morse.DAH = 180;
+// Morse.LS = 420; // Letter spacing
+Morse.WS = 420; // Word spacing
+
+Morse.triggerKeys = [ "Meta" ];
 
 /* Encoding table {{{ */
 Morse.encTab = {
@@ -125,7 +129,7 @@ Morse.signalInit = function() {
 	Morse.vol.gain.value = 0; // start muted
 	Morse.osc = context.createOscillator();
 	Morse.osc.type = 'sine';
-	Morse.osc.frequency.value = 440; // Hz
+	Morse.osc.frequency.value = 660; // Hz
 
 	Morse.osc.connect(Morse.vol);
 	Morse.vol.connect(context.destination);
@@ -135,11 +139,15 @@ Morse.signalInit = function() {
 	// Init queue
 	Morse.bits = new Queue();
 	Morse.playFromSeq = false;
+
+	// Init clocks
+	Morse.clockOn  = Date.now(); // When the signal was turned on
+	Morse.clockOff = Date.now(); // When the signal was turned off
 };
 
-// tmp
-Morse.signalOn = function() { Morse.signal = true; Morse.updateSignal(); }
-Morse.signalOff = function() { Morse.signal = false; Morse.updateSignal(); }
+// Play signal on client
+Morse.signalOn = function() { Morse.signal = true; Morse.updateSignal(); Morse.clockOn = Date.now(); }
+Morse.signalOff = function() { Morse.signal = false; Morse.updateSignal(); Morse.clockOff = Date.now(); }
 
 // Send to server
 Morse.sendSignalOn = function() { socket.emit('signal on'); }
@@ -149,8 +157,12 @@ Morse.sendSignal = function(bool) { bool ? Morse.sendSignalOn() : Morse.sendSign
 Morse.updateSignal = function() { Morse.vol.gain.value = !!Morse.signal; }
 
 // Key events
-window.onkeydown = Morse.sendSignalOn;
-window.onkeyup = Morse.sendSignalOff;
+window.onkeydown = function(e) {
+	if (Morse.triggerKeys.indexOf(e.key) > -1) { Morse.sendSignalOn(); }
+}
+window.onkeyup = function(e) {
+	if (Morse.triggerKeys.indexOf(e.key) > -1) { Morse.sendSignalOff(); }
+}
 
 // Automated keyer
 Morse.signalPlay = function(durs) {
@@ -166,6 +178,17 @@ Morse.update = function() {
 	}
 };
 
+Morse.getType = function() {
+	var time = Morse.clockOff - Morse.clockOn;
+	// Determine if dit or dah or space, by comparing to DAH
+	if (time >= Morse.DAH) { return '-'; } // dah
+	else if (0 < time && time < Morse.DAH) { return '.'; } // dit
+	else if (-time > Morse.WS) { return ' / '; } // word space
+	else if (-time > Morse.DAH) { return ' '; } // letter space
+	else { return ''; } // nothing
+
+	// TODO fix when app just started and getType() returns space
+}
 
 // Use setInterval instead of requestAnimationFrame so it can work in the background
-Morse.animFrame = setInterval(Morse.update, 1000 / 60);
+Morse.animFrame = setInterval(Morse.update, 12); // 12 seems to work

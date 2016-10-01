@@ -10,8 +10,8 @@ var stats_users = document.querySelector('#stats #users');
 
 encode.onclick = function() { output.value = Morse.encode(input.value).join(' '); }
 decode.onclick = function() { output.value = Morse.decode(input.value.split(' ')); }
-vibrate.onclick = function() { Morse.vibrate(input.value.split('')); }
-play.onclick = function() { Morse.signalPlay(input.value.split('')); }
+vibrate.onclick = function() { decode.onclick(); Morse.vibrate(input.value.split('')); }
+play.onclick = function() { decode.onclick(); Morse.signalPlay(input.value.split('')); }
 
 input.value = '.... . .-.. .-.. --- / .-- --- .-. .-.. -..'; // HELLO WORLD
 
@@ -23,12 +23,22 @@ var socket = io();
 
 // Receive from server
 socket.on('signal on', function() {
-	Morse.signalOn();
-	console.log('signal on'); // debug
+	// Only if signal is not on
+	if (!Morse.signal) {
+		Morse.signalOn();
+		console.log('signal on'); // debug
+		input.value += Morse.getType(); // Add space, tmp
+		decode.onclick(); // tmp
+	}
 });
 socket.on('signal off', function() {
-	Morse.signalOff();
-	console.log('signal off'); // debug
+	// Only if signal is on
+	if (Morse.signal) {
+		Morse.signalOff();
+		console.log('signal off'); // debug
+		input.value += Morse.getType(); // Add dit or dah, tmp
+		decode.onclick(); // tmp
+	}
 });
 
 socket.on('sync data', function(msg) {
