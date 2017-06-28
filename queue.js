@@ -38,3 +38,7 @@ Queue.prototype.pushArrays = function(vals, ns) {
  * n is an (+) integer
  * repeat ns if not same length
  */
+
+if (typeof module !== 'undefined') {
+	module.exports = Queue;
+}

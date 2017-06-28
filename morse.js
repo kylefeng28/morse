@@ -1,13 +1,18 @@
 "use strict";
 
+if (typeof require !== 'undefined') {
+	var Queue = require('./queue');
+}
+
 // var socket = require('io');
 var Morse = Morse || {};
 
 /* Constants */
-// 1 DAH = 3 DIT, 1 WS = 7 DIT
+// 1 DAH = 3 DIT
+// 1 LS = 3 DIT, 1 WS = 7 DIT
 Morse.DIT = 60;
 Morse.DAH = 180;
-// Morse.LS = 420; // Letter spacing
+Morse.LS = 180;  // Inter-letter spacing
 Morse.WS = 420; // Word spacing
 
 Morse.triggerKeys = [ "Meta" ];
@@ -95,7 +100,8 @@ Morse.getDurations = function(arr) {
 	Array.prototype.map.call(arr, function(x) { // call() is needed bc `arr` may not be a true Array
 		if (x == '.') durs.push(Morse.DIT, Morse.DIT); else
 		if (x == '-') durs.push(Morse.DAH, Morse.DIT); else
-		              durs.push(0, Morse.DAH);
+		if (x == '/') durs.push(0, Morse.WS); else // Word spacing
+		              durs.push(0, Morse.LS);      // Inter-letter spacing
 	});
 	return durs;
 };
@@ -114,27 +120,24 @@ Morse.getBitstream = function(arr) {
 	return bits.concat(-1); // Terminate with -1 
 };
 
-Morse.vibrate = function(arr) {
-	var durs = Morse.getDurations(arr);
-	window.navigator.vibrate(durs);
-};
-
 /* Signal */
 // From http://stackoverflow.com/a/16573282
 Morse.signalInit = function() {
-	// Init sine oscillator
-	var context = new (window.AudioContext || window.webkitAudioContext)();
-	Morse.vol = context.createGain();
+	// Init CW oscillator
+	if (typeof window !== 'undefined') {
+		var context = new (window.AudioContext || window.webkitAudioContext)();
+		Morse.vol = context.createGain();
 
-	Morse.vol.gain.value = 0; // start muted
-	Morse.osc = context.createOscillator();
-	Morse.osc.type = 'sine';
-	Morse.osc.frequency.value = 660; // Hz
+		Morse.vol.gain.value = 0; // start muted
+		Morse.osc = context.createOscillator();
+		Morse.osc.type = 'sine';
+		Morse.osc.frequency.value = 600; // Hz
 
-	Morse.osc.connect(Morse.vol);
-	Morse.vol.connect(context.destination);
-	Morse.signal = false;
-	Morse.osc.start();
+		Morse.osc.connect(Morse.vol);
+		Morse.vol.connect(context.destination);
+		Morse.signal = false;
+		Morse.osc.start();
+	}
 
 	// Init queue
 	Morse.bits = new Queue();
@@ -154,20 +157,30 @@ Morse.sendSignalOn = function() { socket.emit('signal on'); }
 Morse.sendSignalOff = function() { socket.emit('signal off'); }
 Morse.sendSignal = function(bool) { bool ? Morse.sendSignalOn() : Morse.sendSignalOff(); }
 
-Morse.updateSignal = function() { Morse.vol.gain.value = !!Morse.signal; }
+// Update sound and vibration
+Morse.updateSignal = function() {
+	// Sound
+	Morse.vol.gain.value = +Morse.signal;
 
-// Key events
-window.onkeydown = function(e) {
-	if (Morse.triggerKeys.indexOf(e.key) > -1) { Morse.sendSignalOn(); }
-}
-window.onkeyup = function(e) {
-	if (Morse.triggerKeys.indexOf(e.key) > -1) { Morse.sendSignalOff(); }
+	// Vibration
+	// TODO check vibration flag
+	if (Morse.signal) {
+		navigator.vibrate(1000); // 1 second maximum
+	} else {
+		navigator.vibrate(0); // Stop vibration
+	}
 }
 
 // Automated keyer
 Morse.signalPlay = function(durs) {
 	Morse.bits.pushArrays(Morse.getBitstream(durs));
 	Morse.playFromSeq = true;
+};
+
+// Automated vibrate keyer (only local)
+Morse.vibrateFromSeq = function(arr) {
+	var durs = Morse.getDurations(arr);
+	window.navigator.vibrate(durs);
 };
 
 Morse.update = function() {
@@ -188,6 +201,10 @@ Morse.getType = function() {
 	else { return ''; } // nothing
 
 	// TODO fix when app just started and getType() returns space
+}
+
+if (typeof module !== 'undefined') {
+	module.exports = Morse;
 }
 
 // Use setInterval instead of requestAnimationFrame so it can work in the background
